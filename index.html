@@ -1,0 +1,285 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Nabha Telemedicine — Extended Prototype</title>
+  <meta name="description" content="Extended demo: doctor/patient signup, verification UI, WebRTC placeholders, records, e-prescriptions, multilingual UI and more (demo-only).">
+  <!-- jsPDF for PDF export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+  <style>
+    :root{--brand:#0f766e;--muted:#6b7280;--card:#fff;--radius:12px;--max:1100px}
+    *{box-sizing:border-box}html,body{height:100%;margin:0;font-family:Inter,Arial,sans-serif;background:linear-gradient(180deg,#f8fafc,#eef2f7);color:#0f172a}
+    .container{max-width:var(--max);margin:18px auto;padding:18px}
+    header{display:flex;align-items:center;justify-content:space-between;padding:12px;border-radius:12px;background:linear-gradient(90deg,var(--brand),#0ea5a4);color:#fff}
+    .layout{display:grid;grid-template-columns:1fr 380px;gap:18px;margin-top:18px}
+    @media(max-width:980px){.layout{grid-template-columns:1fr}}
+    .card{background:var(--card);border-radius:var(--radius);padding:14px;box-shadow:0 8px 30px rgba(15,23,42,0.06)}
+    .section-title{font-weight:700;margin:0 0 8px 0}
+    .btn{background:var(--brand);color:#fff;padding:8px 12px;border-radius:8px;border:none;cursor:pointer}
+    .btn.secondary{background:transparent;color:var(--brand);border:1px solid rgba(15,118,110,0.12)}
+    input,textarea,select{padding:10px;border-radius:8px;border:1px solid #eef2f7}
+    .muted{color:var(--muted);font-size:13px}
+    .flex{display:flex;gap:8px;align-items:center}
+    .hidden{display:none}
+    .badge{background:#eefaf7;color:var(--brand);padding:6px 8px;border-radius:8px;font-weight:600}
+    table{width:100%;border-collapse:collapse}
+    td,th{padding:8px;border-bottom:1px solid #f1f5f9}
+    .spark{height:48px}
+  </style>
+</head>
+<body>
+  <header class="container">
+    <div>
+      <h1 style="margin:0">Nabha Telemedicine — Extended Prototype</h1>
+      <div class="muted">Demo: Signup/login, doctor verification UI, WebRTC placeholders, records & multilingual</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <select id="langSel" aria-label="Language selector">
+        <option value="en">English</option>
+        <option value="hi">हिन्दी</option>
+        <option value="pa">ਪੰਜਾਬੀ</option>
+      </select>
+      <button class="btn" id="openHome">Go to Home</button>
+    </div>
+  </header>  <main class="container">
+    <!-- Authentication -->
+    <section class="card" id="authCard">
+      <h3 class="section-title">Signup / Login</h3>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:260px">
+          <strong>Patient / Doctor Signup</strong>
+          <form id="signupForm" onsubmit="return false" style="margin-top:8px">
+            <div class="flex">
+              <select id="role" title="role">
+                <option value="patient">Patient</option>
+                <option value="doctor">Doctor</option>
+              </select>
+              <input id="su_name" placeholder="Full name" />
+            </div>
+            <div style="margin-top:8px;display:flex;gap:8px">
+              <input id="su_email" placeholder="Email" style="flex:1" />
+              <input id="su_phone" placeholder="Phone" style="width:140px" />
+            </div>
+            <div style="margin-top:8px;display:flex;gap:8px">
+              <input id="su_pass" placeholder="Password" type="password" style="flex:1" />
+              <button class="btn secondary" onclick="demoSignupUser()">Signup</button>
+            </div>
+            <div id="doctorVerifyRow" class="muted" style="margin-top:8px;display:none">
+              Doctors must upload ID to get "verified" badge. (Demo: upload an image PDF)
+              <div style="margin-top:6px;display:flex;gap:8px">
+                <input id="idUpload" type="file" accept="image/*,.pdf" />
+                <button class="btn" onclick="submitVerification()">Upload & Request Verification</button>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div style="width:320px">
+          <strong>Login</strong>
+          <div style="margin-top:8px;display:flex;gap:8px;flex-direction:column">
+            <input id="li_email" placeholder="Email or phone" />
+            <input id="li_pass" placeholder="Password" type="password" />
+            <div style="display:flex;gap:8px">
+              <button class="btn" onclick="demoLogin()">Login</button>
+              <button class="btn secondary" onclick="demoLogout()">Logout</button>
+            </div>
+            <div class="muted">Demo auth stored locally (NOT secure). Replace with backend auth for production.</div>
+          </div>
+        </div>
+      </div>
+    </section><div class="layout">
+  <div>
+    <!-- Appointments and Calendar -->
+    <div class="card" style="margin-bottom:12px">
+      <h3 class="section-title">Book / Calendar</h3>
+      <form id="apptForm2" onsubmit="return false" style="display:grid;gap:8px">
+        <div style="display:flex;gap:8px">
+          <input id="a_name" placeholder="Patient name" />
+          <input id="a_date" type="date" />
+          <input id="a_time" type="time" />
+        </div>
+        <textarea id="a_note" placeholder="Reason / note" rows="2"></textarea>
+        <div style="display:flex;gap:8px">
+          <select id="a_doctor"></select>
+          <button class="btn" onclick="bookApptV2()">Book</button>
+          <button class="btn secondary" onclick="exportCal()">Export (iCal)</button>
+        </div>
+        <div id="calendarList" style="margin-top:8px"></div>
+      </form>
+    </div>
+
+    <!-- Chatbot & Auto-triage -->
+    <div class="card" style="margin-bottom:12px">
+      <h3 class="section-title">AI Symptom Chatbot & Auto-Triage</h3>
+      <div id="chatbox2">
+        <div id="chatHistory"><div class="muted">Start chat below. Auto-triage suggests urgency.</div></div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <input id="chatQ" placeholder="Describe symptoms" style="flex:1" />
+          <button class="btn" onclick="chatSymptom()">Send</button>
+        </div>
+        <div id="triageResult" style="margin-top:8px"></div>
+      </div>
+    </div>
+
+    <!-- Records & e-Prescription -->
+    <div class="card">
+      <h3 class="section-title">Health Records & e-Prescription</h3>
+      <div style="display:flex;gap:8px">
+        <input id="rec_patient" placeholder="Select patient" />
+        <button class="btn" onclick="createRecord()">Create Record (PDF)</button>
+        <button class="btn secondary" onclick="viewRecords()">View Records</button>
+      </div>
+      <div style="margin-top:8px">
+        <input id="presc_patient" placeholder="Patient for Rx" />
+        <input id="presc_text" placeholder="Prescription text" style="width:60%" />
+        <button class="btn" onclick="generateRx()">Generate e-Prescription (PDF)</button>
+      </div>
+      <div id="recordsList" style="margin-top:8px"></div>
+    </div>
+  </div>
+
+  <aside>
+    <div class="card" style="margin-bottom:12px">
+      <h3 class="section-title">Doctor Dashboard / Profile</h3>
+      <div id="doctorArea">
+        <div id="profileBlock" style="margin-bottom:8px"></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn" onclick="openDoctorPanel()">Open Doctor Panel</button>
+          <button class="btn secondary" onclick="toggleAssistantMode()">Clinic Mode</button>
+        </div>
+        <div id="doctorStats" style="margin-top:8px"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:12px">
+      <h3 class="section-title">SOS / Emergency</h3>
+      <div class="muted">Calls predefined number, sends SMS/emails via user's device (demo)</div>
+      <div style="margin-top:8px;display:flex;gap:8px">
+        <input id="sos_phone" placeholder="Emergency number" value="+919876543210" />
+        <button class="btn" onclick="triggerSOS()">SOS</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:12px">
+      <h3 class="section-title">IoT / Vitals</h3>
+      <div class="muted">Enter readings or upload CSV (date,value,value...)</div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input id="iot_date" type="date" />
+        <input id="iot_bp" placeholder="BP (e.g. 120/80)" />
+        <input id="iot_glucose" placeholder="Glucose mg/dL" />
+        <button class="btn" onclick="addIOTReading()">Add</button>
+      </div>
+      <div style="margin-top:8px;display:flex;gap:8px">
+        <input id="iot_csv" type="file" accept=".csv" />
+        <button class="btn secondary" onclick="uploadCSV()">Upload CSV</button>
+      </div>
+      <div id="iotTable" style="margin-top:8px"></div>
+    </div>
+
+    <div class="card">
+      <h3 class="section-title">Calls / Video (WebRTC demo)</h3>
+      <div class="muted">Local demo only — for real multi-party calls integrate STUN/TURN and signaling server</div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn" onclick="startLocalCall()">Start Local Video</button>
+        <button class="btn secondary" onclick="endLocalCall()">End</button>
+      </div>
+      <div style="margin-top:8px"><video id="webrtcLocal" autoplay playsinline style="width:100%;border-radius:8px;background:#000;height:160px"></video></div>
+    </div>
+  </aside>
+</div>
+
+  </main>  <footer class="container muted">© Nabha Telemedicine — Extended Demo. Replace demo storage & crypto with secure server, implement NDHM/ABHA and proper regulatory flow for prescriptions.</footer>  <script>
+  /* ------------------ DEMO STORAGE & AUTH (local-only) ------------------ */
+  const DB = { users: JSON.parse(localStorage.getItem('nabha_users')||'[]'), appts: JSON.parse(localStorage.getItem('nabha_appts_v3')||'[]'), records: JSON.parse(localStorage.getItem('nabha_records_v1')||'[]'), iot: JSON.parse(localStorage.getItem('nabha_iot_v1')||'[]') };
+  function persist(){ localStorage.setItem('nabha_users', JSON.stringify(DB.users)); localStorage.setItem('nabha_appts_v3', JSON.stringify(DB.appts)); localStorage.setItem('nabha_records_v1', JSON.stringify(DB.records)); localStorage.setItem('nabha_iot_v1', JSON.stringify(DB.iot)); }
+
+  function translate(key){ const L=document.getElementById('langSel').value; const T={
+    en:{welcome:'Welcome to Nabha demo'}, hi:{welcome:'नाभा डेमो में आपका स्वागत'}, pa:{welcome:'ਨਭਾ ਡੈਮੋ ਵਿੱਚ ਤੁਹਾਡਾ ਸੁਆਗਤ'} };
+    return (T[L] && T[L][key]) || T.en[key] || key;
+  }
+
+  // Signup (demo): creates user with role and optional uploaded verification file metadata
+  async function demoSignupUser(){ const role=document.getElementById('role').value; const name=document.getElementById('su_name').value.trim(); const email=document.getElementById('su_email').value.trim(); const phone=document.getElementById('su_phone').value.trim(); const pass=document.getElementById('su_pass').value;
+    if(!name||!email||!pass) return alert('Fill required');
+    const exists=DB.users.find(u=>u.email===email||u.phone===phone); if(exists) return alert('User exists (demo)');
+    const user = {id:Date.now().toString(),name,email,phone,pass,role,verified:false,createdAt:new Date().toISOString()};
+    DB.users.push(user); persist(); alert('Signed up (demo). Login to continue.'); document.getElementById('su_name').value=''; document.getElementById('su_email').value=''; document.getElementById('su_phone').value=''; document.getElementById('su_pass').value='';
+    // reveal verification UI for doctors
+    document.getElementById('doctorVerifyRow').style.display = role==='doctor' ? 'block' : 'none';
+  }
+
+  // Upload verification (demo): attaches filename to last signed up doctor and sets pending flag
+  function submitVerification(){ const file = document.getElementById('idUpload').files[0]; if(!file) return alert('Select file'); const last = DB.users[DB.users.length-1]; if(!last||last.role!=='doctor') return alert('No doctor signup in this session (demo)'); last.verification = {filename:file.name,uploadedAt:new Date().toISOString(),status:'pending'}; persist(); alert('Verification uploaded (demo). Marked pending.'); }
+
+  // Login (demo)
+  function demoLogin(){ const ident=document.getElementById('li_email').value.trim(); const pass=document.getElementById('li_pass').value; const u = DB.users.find(x=>x.email===ident||x.phone===ident); if(!u||u.pass!==pass) return alert('Invalid credentials'); localStorage.setItem('nabha_current', JSON.stringify({id:u.id,name:u.name,role:u.role,verified:u.verified})); renderAfterLogin(); alert('Logged in as '+u.name+' ('+u.role+')'); }
+  function demoLogout(){ localStorage.removeItem('nabha_current'); alert('Logged out'); renderAfterLogin(); }
+
+  function getCurrent(){ return JSON.parse(localStorage.getItem('nabha_current')||'null'); }
+
+  function renderAfterLogin(){ const cur=getCurrent(); const pb=document.getElementById('profileBlock'); pb.innerHTML=''; if(!cur){ pb.innerHTML='<div class="muted">Not logged in</div>'; return; }
+    const u = DB.users.find(x=>x.id===cur.id);
+    pb.innerHTML = `<div><strong>${u.name}</strong> <span class="badge">${u.role}${u.verified? ' • Verified':' • Not verified'}</span></div><div class="muted">${u.email||u.phone}</div>`;
+    // add doctor to doctor list if role doctor
+    populateDoctorList();
+  }
+
+  // Doctor list chooser (simple)
+  function populateDoctorList(){ const sel=document.getElementById('a_doctor'); sel.innerHTML=''; const docs = DB.users.filter(u=>u.role==='doctor'); if(!docs.length) sel.innerHTML='<option value="">No doctors</option>';
+    docs.forEach(d=>{ const o=document.createElement('option'); o.value=d.id; o.textContent = d.name + (d.verified? ' (verified)':''); sel.appendChild(o); });
+  }
+
+  /* ------------------ Appointments v2 ------------------ */
+  function bookApptV2(){ const name=document.getElementById('a_name').value|| (getCurrent()? getCurrent().name : 'Guest'); const date=document.getElementById('a_date').value; const time=document.getElementById('a_time').value; const docId=document.getElementById('a_doctor').value; const note=document.getElementById('a_note').value;
+    if(!date||!time||!docId) return alert('Pick date/time and doctor'); DB.appts.push({id:Date.now().toString(),patientName:name,date,time,docId,note,createdAt:new Date().toISOString()}); persist(); renderCalendar(); alert('Booked (demo)'); document.getElementById('a_name').value=''; document.getElementById('a_note').value=''; }
+  function renderCalendar(){ const out=document.getElementById('calendarList'); if(!DB.appts.length) return out.innerHTML='<div class="muted">No appointments</div>';
+    out.innerHTML = '<table><tr><th>Patient</th><th>Date</th><th>Time</th><th>Doctor</th></tr>'+DB.appts.map(a=>`<tr><td>${a.patientName}</td><td>${a.date}</td><td>${a.time}</td><td>${(DB.users.find(u=>u.id===a.docId)||{}).name||'—'}</td></tr>`).join('')+'</table>';
+  }
+
+  function exportCal(){ if(!DB.appts.length) return alert('No appointments'); const ics = ['BEGIN:VCALENDAR','VERSION:2.0']; DB.appts.forEach(a=>{ const dt=a.date.replace(/-/g,'')+'T'+(a.time.replace(':','')+'00'); ics.push('BEGIN:VEVENT'); ics.push('SUMMARY:Appointment — '+a.patientName); ics.push('DTSTART:'+dt); ics.push('DESCRIPTION:'+a.note); ics.push('END:VEVENT'); }); ics.push('END:VCALENDAR'); const blob=new Blob([ics.join('\n')],{type:'text/calendar'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='appointments.ics'; a.click(); URL.revokeObjectURL(url); }
+
+  /* ------------------ Chatbot + Auto-triage (rule-based demo) ------------------ */
+  function chatSymptom(){ const q=document.getElementById('chatQ').value.trim(); if(!q) return; const hist=document.getElementById('chatHistory'); hist.innerHTML += `<div><strong>You:</strong> ${q}</div>`; // simple triage
+    const s = q.toLowerCase(); let urgency='Low'; if(/(bleed| bleeding|breathless|chest pain|severe|unconscious)/i.test(s)) urgency='High'; else if(/(fever|dizziness|vomit|vomiting)/i.test(s)) urgency='Medium'; document.getElementById('triageResult').innerHTML = `<div class="muted">Auto-triage: <strong>${urgency}</strong> — ${urgency==='High' ? 'Call emergency now' : urgency==='Medium' ? 'See doctor soon' : 'Routine consult'}</div>`; document.getElementById('chatQ').value=''; }
+
+  /* ------------------ Records & e-Prescription ------------------ */
+  function createRecord(){ const patient=document.getElementById('rec_patient').value|| (getCurrent()? getCurrent().name : 'Unknown'); const id=Date.now().toString(); const rec={id,patient,createdAt:new Date().toISOString(),data:[{note:'Record created',at:new Date().toISOString()}]}; DB.records.push(rec); persist(); alert('Record created (demo)'); renderRecords(); }
+  function viewRecords(){ renderRecords(); alert('Viewing records (demo)'); }
+  function renderRecords(){ const out=document.getElementById('recordsList'); if(!DB.records.length) return out.innerHTML='<div class="muted">No records</div>'; out.innerHTML = '<ul>'+DB.records.map(r=>`<li>${r.patient} — ${r.createdAt} <button onclick="downloadRecord(\'${r.id}\')" class=\"btn secondary\">Download PDF</button></li>`).join('')+'</ul>'; }
+  function downloadRecord(id){ const r=DB.records.find(x=>x.id===id); if(!r) return alert('Not found'); const { jsPDF } = window.jspdf; const doc = new jsPDF(); doc.setFontSize(14); doc.text('Health Record',14,20); doc.setFontSize(11); doc.text(`Patient: ${r.patient}`,14,30); doc.text(`Created: ${r.createdAt}`,14,38); doc.text('Entries:',14,48); r.data.forEach((e,i)=>doc.text(`${i+1}. ${e.note} (${e.at})`,14,58 + i*8)); doc.save(`${r.patient.replace(/\s+/g,'_')}-record.pdf`); }
+  function generateRx(){ const p=document.getElementById('presc_patient').value||'Patient'; const t=document.getElementById('presc_text').value||'As advised'; const { jsPDF } = window.jspdf; const doc = new jsPDF(); doc.setFontSize(16); doc.text('e-Prescription',14,20); doc.setFontSize(12); doc.text(`Patient: ${p}`,14,34); doc.text(`Prescription: ${t}`,14,44); doc.text(`Generated: ${new Date().toLocaleString()}`,14,54); doc.save(`${p.replace(/\s+/g,'_')}-prescription.pdf`); // save to demo record
+    const rec = DB.records.find(r=>r.patient===p) || null; if(rec) rec.data.push({note:'Prescription: '+t,at:new Date().toISOString()}); persist(); alert('e-Prescription generated (demo)'); }
+
+  /* ------------------ SOS ------------------ */
+  function triggerSOS(){ const num=document.getElementById('sos_phone').value.trim(); if(!num) return alert('Add phone'); // use tel: and sms: links — actual SMS sending depends on device
+    // open phone dialer
+    window.open('tel:'+num,'_self'); // open SMS composer
+    setTimeout(()=>{ window.open('sms:'+num+'?body=' + encodeURIComponent('Emergency: Please help. Patient needs assistance.'), '_blank'); },800);
+    // open mailto (user may modify)
+    window.open('mailto:?subject=' + encodeURIComponent('Emergency') + '&body=' + encodeURIComponent('Emergency for patient — please contact: '+num)); }
+
+  /* ------------------ IoT data (demo) ------------------ */
+  function addIOTReading(){ const date=document.getElementById('iot_date').value; const bp=document.getElementById('iot_bp').value; const glucose=document.getElementById('iot_glucose').value; if(!date) return alert('Select date'); DB.iot.push({id:Date.now().toString(),date,bp,glucose}); persist(); renderIOT(); }
+  function renderIOT(){ const out=document.getElementById('iotTable'); if(!DB.iot.length) return out.innerHTML='<div class="muted">No vitals yet</div>'; out.innerHTML = '<table><tr><th>Date</th><th>BP</th><th>Glucose</th></tr>'+DB.iot.map(d=>`<tr><td>${d.date}</td><td>${d.bp}</td><td>${d.glucose}</td></tr>`).join('')+'</table>'; }
+  function uploadCSV(){ const f=document.getElementById('iot_csv').files[0]; if(!f) return alert('Pick file'); const reader=new FileReader(); reader.onload = (e)=>{ const txt=e.target.result; // very simple CSV parser
+      const lines = txt.split(/\r?\n/).filter(Boolean); lines.forEach(line=>{ const parts=line.split(',').map(s=>s.trim()); if(parts.length>=2){ DB.iot.push({id:Date.now().toString(),date:parts[0],bp:parts[1],glucose:parts[2]||''}); } }); persist(); renderIOT(); alert('CSV uploaded (demo)'); }; reader.readAsText(f); }
+
+  /* ------------------ WebRTC local demo (no signaling) ------------------ */
+  let localStream=null; async function startLocalCall(){ try{ const s = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'}, audio:true}); localStream=s; document.getElementById('webrtcLocal').srcObject = s; }catch(e){ alert('Camera access denied: '+e.message); } }
+  function endLocalCall(){ if(localStream){ localStream.getTracks().forEach(t=>t.stop()); localStream=null; document.getElementById('webrtcLocal').srcObject = null; } }
+
+  /* ------------------ Simple UI helpers ------------------ */
+  function openDoctorPanel(){ alert('Doctor panel demo: view appointments and patients in right-hand cards.'); }
+  function toggleAssistantMode(){ alert('Clinic assistant mode toggled (demo).'); }
+
+  /* ------------------ Init demo data ------------------ */
+  (function init(){ // create demo users
+    if(!DB.users.length){ DB.users.push({id:'d1',name:'Dr. Singh',email:'doc1@demo',phone:'',pass:'docpass',role:'doctor',verified:true}); DB.users.push({id:'d2',name:'Dr. Kaur',email:'doc2@demo',phone:'',pass:'docpass',role:'doctor',verified:false}); DB.users.push({id:'p1',name:'Sita Devi',email:'sita@demo',phone:'',pass:'pass',role:'patient',verified:false}); persist(); }
+    populateDoctorList(); renderCalendar(); renderIOT(); renderRecords(); renderAfterLogin();
+    document.getElementById('openHome').addEventListener('click', ()=>window.scrollTo({top:0,behavior:'smooth'}));
+    // language switch demo
+    document.getElementById('langSel').addEventListener('change', ()=>{ document.querySelectorAll('.muted').forEach(el=>{ el.textContent = translate('welcome'); }); });
+  })();
+  </script></body>
+</html>
